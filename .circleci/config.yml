@@ -1,0 +1,73 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@5.2.0
+
+jobs:
+  checkoutEtTests:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - run:
+          name: Clone backend
+          command: |
+            git clone https://github.com/sebjean21/3w5-h25-L01-backend.git backend
+      - run:
+          name: Install backend deps + run tests
+          command: |
+            cd backend
+            npm ci
+            npm test
+
+  integrationFrontend:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - run:
+          name: Clone backend + frontend
+          command: |
+            git clone https://github.com/sebjean21/3w5-h25-L01-backend.git backend
+            git clone https://github.com/sebjean21/3w5-h25-L01-frontend.git frontend
+
+      - run:
+          name: Install frontend deps + build
+          command: |
+            cd frontend
+            npm ci
+            npm run build
+
+      - run:
+          name: Copy frontend build into backend/public
+          command: |
+            mkdir -p backend/public
+            # build -> public (inclut tout)
+            cp -rT frontend/build backend/public
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - backend
+
+  deploiement:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Show backend ready for deploy
+          command: |
+            cd backend
+            ls -Rl
+
+workflows:
+  version: 2
+  pipeline:
+    jobs:
+      - checkoutEtTests
+      - integrationFrontend:
+          requires:
+            - checkoutEtTests
+      - deploiement:
+          requires:
+            - integrationFrontend
